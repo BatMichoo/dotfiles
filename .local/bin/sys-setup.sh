@@ -237,6 +237,50 @@ antigravity_c() {
     rm -rf "$HOME/.config/Antigravity" "$HOME/.gemini/antigravity-cli" || true
 }
 
+# --- DISCORD ---
+discord_i() {
+    log_info "Installing Discord..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -S --noconfirm discord
+    else
+        curl -Lo /tmp/discord.deb "https://discord.com/api/download?platform=linux&format=deb"
+        sudo apt-get install -y /tmp/discord.deb
+        rm -f /tmp/discord.deb
+    fi
+}
+
+discord_c() {
+    log_info "Cleaning Discord..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -Rns --noconfirm discord || true
+    else
+        sudo apt-get purge -y discord || true
+        sudo apt-get autoremove -y || true
+    fi
+}
+
+# --- STEAM ---
+steam_i() {
+    log_info "Installing Steam..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -S --noconfirm steam
+    else
+        sudo dpkg --add-architecture i386 || true
+        sudo apt-get update
+        sudo apt-get install -y steam-installer || sudo apt-get install -y steam
+    fi
+}
+
+steam_c() {
+    log_info "Cleaning Steam..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -Rns --noconfirm steam || true
+    else
+        sudo apt-get purge -y steam-installer steam || true
+        sudo apt-get autoremove -y || true
+    fi
+}
+
 # --- BULK COMMANDS ---
 install_all() {
     log_info "Starting full installation..."
@@ -250,11 +294,15 @@ install_all() {
     lazygit_i
     antigravity_i
     treesitter_i
+    discord_i
+    steam_i
     log_info "Full installation completed!"
 }
 
 clean_all() {
     log_info "Starting full cleanup..."
+    steam_c
+    discord_c
     treesitter_c
     antigravity_c
     lazygit_c
@@ -276,7 +324,7 @@ show_help() {
     echo "  update               Run system update"
     echo ""
     echo "Components:"
-    echo "  build-ess, dotnet, go, node, nvim, lazygit, treesitter, rust, antigravity"
+    echo "  build-ess, dotnet, go, node, nvim, lazygit, treesitter, rust, antigravity, discord, steam"
     echo ""
     echo "Legacy Target Support:"
     echo "  <component>-i        Same as 'install <component>'"
@@ -349,6 +397,12 @@ case "$COMPONENT" in
         ;;
     antigravity)
         if [ "$ACTION" = "install" ]; then antigravity_i; else antigravity_c; fi
+        ;;
+    discord)
+        if [ "$ACTION" = "install" ]; then discord_i; else discord_c; fi
+        ;;
+    steam)
+        if [ "$ACTION" = "install" ]; then steam_i; else steam_c; fi
         ;;
     *)
         log_error "Unknown component: $COMPONENT"
