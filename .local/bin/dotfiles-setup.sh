@@ -73,6 +73,28 @@ log_info "Configuring local repository options..."
 dotfiles_git config --local status.showUntrackedFiles no
 dotfiles_git symbolic-ref HEAD refs/heads/main 2>/dev/null || true
 
+log_info "Configuring exclude rules for the bare repository..."
+mkdir -p "$DOTFILES_DIR/info"
+cat << 'EOF' > "$DOTFILES_DIR/info/exclude"
+# Ignore system/caching folders
+.cache/
+.dbus/
+.local/share/Trash/
+.cargo/
+.npm/
+
+# Ignore sensitive keys and private data
+.ssh/id_*
+.ssh/known_hosts*
+.gnupg/
+
+# Ignore temp files and histories
+.node_repl_history
+.bash_history
+.lesshst
+EOF
+
+
 # 4. Fish Alias Configuration
 log_info "Configuring Fish alias..."
 mkdir -p "$FISH_FUNCTIONS_DIR"
