@@ -25,6 +25,9 @@ if command -v xdg-mime >/dev/null 2>&1; then
     xdg-mime default nvim.desktop text/plain
 fi
 
+# Configure Single Click to Open Files & Folders
+kwriteconfig6 --file kdeglobals --group KDE --key SingleClick true
+
 # B. Keyboard Layouts (US + Bulgarian Traditional Phonetic, Alt+Shift to switch)
 kwriteconfig6 --file kxkbrc --group Layout --key Use true
 kwriteconfig6 --file kxkbrc --group Layout --key LayoutList "us,bg"
