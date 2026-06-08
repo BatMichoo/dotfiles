@@ -116,7 +116,8 @@ if command -v kwriteconfig6 >/dev/null 2>&1; then
     kwriteconfig6 --file kglobalshortcutsrc --group kwin --key "Window Quick Tile Top" "none,none,Quick Tile Window to the Top"
     kwriteconfig6 --file kglobalshortcutsrc --group kwin --key "toggle-maximize-tile:Toggle Maximize or Tile Top" "Meta+Up,none,Toggle Maximize or Tile Top"
     
-    # Configure PowerDevil settings (30m screen off, 1h 30m sleep)
+    # Configure PowerDevil settings (30m screen off, 1h 30m sleep, never dim display on AC)
+    kwriteconfig6 --file powerdevilrc --group AC --group Display --key DimDisplayWhenIdle false
     kwriteconfig6 --file powerdevilrc --group AC --group Display --key TurnOffDisplayIdleTimeoutSec 1800
     kwriteconfig6 --file powerdevilrc --group AC --group SuspendAndShutdown --key AutoSuspendIdleTimeoutSec 5400
     kwriteconfig6 --file powerdevilrc --group Battery --group Display --key TurnOffDisplayIdleTimeoutSec 1800
