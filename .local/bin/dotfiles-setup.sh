@@ -4,7 +4,6 @@ set -euo pipefail
 # Configurations
 DOTFILES_DIR="$HOME/.dotfiles"
 TARGET_REMOTE="git@github.com:BatMichoo/dotfiles.git"
-FISH_FUNCTIONS_DIR="$HOME/.config/fish/functions"
 BACKUP_DIR_BASE="$HOME/.dotfiles-backup"
 
 dotfiles_git() {
@@ -30,7 +29,7 @@ else
 fi
 
 echo "==========================================="
-echo "   🌌 Unified Dotfiles Bootstrap Setup"
+echo "    🌌 Unified Dotfiles Bootstrap Setup"
 echo "==========================================="
 echo
 
@@ -48,32 +47,26 @@ else
     log_info "Existing SSH key found at $KEY_PATH. Proceeding..."
 fi
 
-# Start ssh-agent in the current session so git checkout works immediately
+# Start ssh-agent in the current session so git clone works immediately
 eval "$(ssh-agent -s)"
 ssh-add "$KEY_PATH" || true
 
-# 3. Bare Repository Initialization
+
+# 3. Clean Bare Repository Cloning
 echo
-log_info "Initializing bare Git repository..."
+log_info "Setting up bare Git repository..."
 if [ ! -d "$DOTFILES_DIR" ]; then
-    git init --bare "$DOTFILES_DIR"
-    log_info "Bare repository initialized at $DOTFILES_DIR"
+    log_info "Cloning bare repository from GitHub..."
+    dotfiles_git clone --bare "$TARGET_REMOTE" "$DOTFILES_DIR"
 else
     log_info "Bare repository directory $DOTFILES_DIR already exists."
 fi
 
-log_info "Configuring remote origin..."
-if dotfiles_git remote | grep -q "^origin$"; then
-    dotfiles_git remote set-url origin "$TARGET_REMOTE"
-else
-    dotfiles_git remote add origin "$TARGET_REMOTE"
-fi
-
-log_info "Configuring local repository options..."
+# Apply visibility and rule constraints immediately to the cloned engine
+log_info "Configuring repository parameters..."
 dotfiles_git config --local status.showUntrackedFiles no
-dotfiles_git symbolic-ref HEAD refs/heads/main 2>/dev/null || true
 
-log_info "Configuring exclude rules for the bare repository..."
+# Configure exclude rules for the bare repository
 mkdir -p "$DOTFILES_DIR/info"
 cat << 'EOF' > "$DOTFILES_DIR/info/exclude"
 # Ignore system/caching folders
@@ -95,70 +88,52 @@ cat << 'EOF' > "$DOTFILES_DIR/info/exclude"
 EOF
 
 
-# 4. Fish Alias & Editor Configurations
-log_info "Configuring Fish alias..."
-mkdir -p "$FISH_FUNCTIONS_DIR"
-cat << 'EOF' > "$FISH_FUNCTIONS_DIR/dotfiles.fish"
-function dotfiles --wraps=git --description 'alias dotfiles git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
-  git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME $argv
-end
-EOF
+# 4. Extract Configurations (Checkout Files to Disk)
+log_info "Checking out dotfiles into active working tree..."
 
-if [ -f "$HOME/.bashrc" ] && ! grep -q "export EDITOR=" "$HOME/.bashrc"; then
-    log_info "Configuring default editor in ~/.bashrc..."
-    echo -e "\n# Set default editor to Neovim\nexport EDITOR=nvim\nexport VISUAL=nvim" >> "$HOME/.bashrc"
-fi
+# Natively attempt checkout now that the bare clone tracked structural state perfectly
+if ! dotfiles_git checkout main 2>/dev/null; then
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    CURRENT_BACKUP_DIR="$BACKUP_DIR_BASE/$TIMESTAMP"
+    log_info "Collision detected. Safely backing up conflicting local files to $CURRENT_BACKUP_DIR..."
 
-# 5. KDE settings configuration
-log_info "Running KDE desktop setup script..."
-KDE_SETUP_PATH="$HOME/.local/bin/kde-setup.sh"
-if [ -f "$KDE_SETUP_PATH" ]; then
-    chmod +x "$KDE_SETUP_PATH"
-    "$KDE_SETUP_PATH"
+    # Query Git directly via diff for paths conflicting with the remote state
+    dotfiles_git diff --name-only origin/main | while read -r file; do
+        if [ -n "$file" ] && [ -e "$HOME/$file" ]; then
+            mkdir -p "$CURRENT_BACKUP_DIR/$(dirname "$file")"
+            mv "$HOME/$file" "$CURRENT_BACKUP_DIR/$file"
+            echo "  Moved: $file -> $CURRENT_BACKUP_DIR/$file"
+        fi
+    done
+
+    log_info "Retrying final configuration checkout..."
+    dotfiles_git checkout main
 else
-    log_error "Warning: kde-setup.sh not found. Skipping KDE DE config."
-fi
-
-# 6. Fetch and Checkout configurations
-log_info "Fetching and checking out dotfiles..."
-if dotfiles_git fetch origin main; then
-    checkout_output=$(dotfiles_git checkout main 2>&1) || true
-    
-    if echo "$checkout_output" | grep -q "already on 'main'"; then
-        log_info "Already on main branch."
-    elif echo "$checkout_output" | grep -q "Switched to branch 'main'"; then
-        log_info "Successfully checked out main branch."
-    elif echo "$checkout_output" | grep -q "The following untracked working tree files would be overwritten by checkout"; then
-        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-        CURRENT_BACKUP_DIR="$BACKUP_DIR_BASE/$TIMESTAMP"
-        mkdir -p "$CURRENT_BACKUP_DIR"
-        log_info "Collision detected. Backing up colliding files to $CURRENT_BACKUP_DIR..."
-        
-        echo "$checkout_output" | \
-            awk '/The following untracked working tree files would be overwritten by checkout:/,/Please move or remove them before you switch branches./' | \
-            grep -E '^(\t|[ ]{4})' | \
-            sed -E 's/^[ \t]+//' | \
-            while read -r file; do
-                if [ -n "$file" ] && [ -e "$HOME/$file" ]; then
-                    mkdir -p "$CURRENT_BACKUP_DIR/$(dirname "$file")"
-                    mv "$HOME/$file" "$CURRENT_BACKUP_DIR/$file"
-                    echo "  Moved: $file -> $CURRENT_BACKUP_DIR/$file"
-                fi
-            done
-            
-        log_info "Retrying checkout..."
-        dotfiles_git checkout main
-    else
-        log_error "Warning: Checkout failed or had unexpected output:"
-        echo "$checkout_output"
-    fi
-else
-    log_error "Error: Fetching from origin failed. Check your internet connection and GitHub key registry."
-    exit 1
+    log_info "Successfully completed dotfiles repository checkout."
 fi
 
 log_info "Updating submodules recursively..."
 dotfiles_git submodule update --init --recursive
+
+
+# 5. Environment Fallbacks & Overrides
+# Note: Your Fish alias file (dotfiles.fish) is now cleanly dropped in place by the checkout.
+if [ -f "$HOME/.bashrc" ] && ! grep -q "export EDITOR=" "$HOME/.bashrc"; then
+    log_info "Configuring default editor fallback in ~/.bashrc..."
+    echo -e "\n# Set default editor to Neovim\nexport EDITOR=nvim\nexport VISUAL=nvim" >> "$HOME/.bashrc"
+fi
+
+
+# 6. Run Desktop Configuration Scripts (Now safely present on disk)
+log_info "Running KDE desktop setup script..."
+KDE_SETUP_PATH="$HOME/.local/bin/kde-setup.sh"
+if [ -f "$KDE_SETUP_PATH" ]; then
+    chmod +x "$KDE_SETUP_PATH"
+    "$KDE_SETUP_PATH" || log_error "Warning: kde-setup.sh exited with an error status."
+else
+    log_error "Warning: kde-setup.sh not found on disk. Skipping KDE setup configuration."
+fi
+
 
 # 7. Run System Setup Script (Programming Tools)
 SYS_SETUP_PATH="$HOME/.local/bin/sys-setup.sh"
@@ -170,6 +145,7 @@ else
     log_error "Error: sys-setup.sh not found after checkout. Setup incomplete."
     exit 1
 fi
+
 
 # 8. Run General Applications Script (Discord, Steam, Chrome)
 APPS_SETUP_PATH="$HOME/.local/bin/apps-setup.sh"
@@ -184,7 +160,7 @@ fi
 
 echo
 echo "==========================================="
-echo "   🎉 Environment Setup Complete!"
-echo "   Please restart your session/logout to"
-echo "   apply KDE KWallet settings."
+echo "    🎉 Environment Setup Complete!"
+echo "    Please restart your session/logout to"
+echo "    apply KDE settings completely."
 echo "==========================================="
