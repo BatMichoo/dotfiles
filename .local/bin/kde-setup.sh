@@ -16,9 +16,14 @@ if ! command -v kwriteconfig6 >/dev/null 2>&1; then
     exit 0
 fi
 
-# A. Terminal Defaults
+# A. Terminal Defaults & MIME associations
 kwriteconfig6 --file kdeglobals --group General --key TerminalApplication "ghostty"
 kwriteconfig6 --file kdeglobals --group General --key TerminalService "com.mitchellh.ghostty.desktop"
+
+if command -v xdg-mime >/dev/null 2>&1; then
+    log_info "Setting Neovim as default plain text handler..."
+    xdg-mime default nvim.desktop text/plain
+fi
 
 # B. Keyboard Layouts (US + Bulgarian Traditional Phonetic, Alt+Shift to switch)
 kwriteconfig6 --file kxkbrc --group Layout --key Use true

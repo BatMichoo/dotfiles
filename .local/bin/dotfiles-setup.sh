@@ -95,7 +95,7 @@ cat << 'EOF' > "$DOTFILES_DIR/info/exclude"
 EOF
 
 
-# 4. Fish Alias Configuration
+# 4. Fish Alias & Editor Configurations
 log_info "Configuring Fish alias..."
 mkdir -p "$FISH_FUNCTIONS_DIR"
 cat << 'EOF' > "$FISH_FUNCTIONS_DIR/dotfiles.fish"
@@ -103,6 +103,11 @@ function dotfiles --wraps=git --description 'alias dotfiles git --git-dir=$HOME/
   git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME $argv
 end
 EOF
+
+if [ -f "$HOME/.bashrc" ] && ! grep -q "export EDITOR=" "$HOME/.bashrc"; then
+    log_info "Configuring default editor in ~/.bashrc..."
+    echo -e "\n# Set default editor to Neovim\nexport EDITOR=nvim\nexport VISUAL=nvim" >> "$HOME/.bashrc"
+fi
 
 # 5. KDE settings configuration
 log_info "Running KDE desktop setup script..."
