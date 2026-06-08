@@ -28,6 +28,10 @@ fi
 # Configure Single Click to Open Files & Folders
 kwriteconfig6 --file kdeglobals --group KDE --key SingleClick true
 
+# Configure Dolphin to Globally Show Hidden Files
+mkdir -p "$HOME/.local/share/dolphin/view_properties/global"
+kwriteconfig6 --file "$HOME/.local/share/dolphin/view_properties/global/.directory" --group Settings --key HiddenFilesShown true
+
 # B. Keyboard Layouts (US + Bulgarian Traditional Phonetic, Alt+Shift to switch)
 kwriteconfig6 --file kxkbrc --group Layout --key Use true
 kwriteconfig6 --file kxkbrc --group Layout --key LayoutList "us,bg"
