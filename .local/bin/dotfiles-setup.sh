@@ -47,6 +47,29 @@ else
     echo "kwriteconfig6 not found. Skipping KDE settings change."
 fi
 
+echo "=== Setting KDE KWin Scripts and Shortcuts ==="
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    # Enable the custom KWin script
+    kwriteconfig6 --file kwinrc --group Plugins --key toggle-maximize-tileEnabled true
+    echo "Enabled toggle-maximize-tile KWin script."
+
+    # Configure global shortcuts to map Meta+Up to the script and disable default Quick Tile Top
+    kwriteconfig6 --file kglobalshortcutsrc --group kwin --key "Window Quick Tile Top" "none,none,Quick Tile Window to the Top"
+    kwriteconfig6 --file kglobalshortcutsrc --group kwin --key "toggle-maximize-tile:Toggle Maximize or Tile Top" "Meta+Up,none,Toggle Maximize or Tile Top"
+    echo "Configured Meta+Up shortcuts."
+
+    # Reload KWin configuration
+    if command -v gdbus >/dev/null 2>&1; then
+        gdbus call --session --dest org.kde.KWin --object-path /KWin --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+        (systemctl --user restart plasma-kglobalaccel.service >/dev/null 2>&1 || true)
+        gdbus call --session --dest org.kde.KWin --object-path /KWin --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
+        echo "Reloaded KWin and kglobalaccel configuration."
+    fi
+else
+    echo "kwriteconfig6 not found. Skipping KWin script setup."
+fi
+
+
 echo "=== Fetching and Checking out main branch ==="
 if dotfiles_git fetch origin main 2>/dev/null; then
     checkout_output=$(dotfiles_git checkout main 2>&1) || true
