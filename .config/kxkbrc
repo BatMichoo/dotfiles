@@ -1,0 +1,6 @@
+[Layout]
+DisplayNames=,
+LayoutList=us,bg
+Options=grp:alt_shift_toggle
+Use=true
+VariantList=,phonetic

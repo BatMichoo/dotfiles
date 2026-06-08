@@ -105,31 +105,13 @@ end
 EOF
 
 # 5. KDE settings configuration
-log_info "Configuring KDE settings..."
-if command -v kwriteconfig6 >/dev/null 2>&1; then
-    # Terminal Defaults
-    kwriteconfig6 --file kdeglobals --group General --key TerminalApplication "ghostty"
-    kwriteconfig6 --file kdeglobals --group General --key TerminalService "com.mitchellh.ghostty.desktop"
-    
-    # Enable KWin script
-    kwriteconfig6 --file kwinrc --group Plugins --key toggle-maximize-tileEnabled true
-    kwriteconfig6 --file kglobalshortcutsrc --group kwin --key "Window Quick Tile Top" "none,none,Quick Tile Window to the Top"
-    kwriteconfig6 --file kglobalshortcutsrc --group kwin --key "toggle-maximize-tile:Toggle Maximize or Tile Top" "Meta+Up,none,Toggle Maximize or Tile Top"
-    
-    # Configure PowerDevil settings (30m screen off, 1h 30m sleep, never dim display on AC)
-    kwriteconfig6 --file powerdevilrc --group AC --group Display --key DimDisplayWhenIdle false
-    kwriteconfig6 --file powerdevilrc --group AC --group Display --key TurnOffDisplayIdleTimeoutSec 1800
-    kwriteconfig6 --file powerdevilrc --group AC --group SuspendAndShutdown --key AutoSuspendIdleTimeoutSec 5400
-    kwriteconfig6 --file powerdevilrc --group Battery --group Display --key TurnOffDisplayIdleTimeoutSec 1800
-    kwriteconfig6 --file powerdevilrc --group Battery --group SuspendAndShutdown --key AutoSuspendIdleTimeoutSec 5400
-    
-    # Reload KDE Configuration (KWin and PowerDevil)
-    if command -v gdbus >/dev/null 2>&1; then
-        gdbus call --session --dest org.kde.KWin --object-path /KWin --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
-        (systemctl --user restart plasma-kglobalaccel.service >/dev/null 2>&1 || true)
-        gdbus call --session --dest org.kde.KWin --object-path /KWin --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
-        gdbus call --session --dest org.freedesktop.PowerManagement --object-path /org/kde/Solid/PowerManagement --method org.kde.Solid.PowerManagement.reparseConfiguration >/dev/null 2>&1 || true
-    fi
+log_info "Running KDE desktop setup script..."
+KDE_SETUP_PATH="$HOME/.local/bin/kde-setup.sh"
+if [ -f "$KDE_SETUP_PATH" ]; then
+    chmod +x "$KDE_SETUP_PATH"
+    "$KDE_SETUP_PATH"
+else
+    log_error "Warning: kde-setup.sh not found. Skipping KDE DE config."
 fi
 
 # 6. Fetch and Checkout configurations
