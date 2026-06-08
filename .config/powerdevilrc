@@ -1,0 +1,12 @@
+[AC][Display]
+DimDisplayIdleTimeoutSec=600
+TurnOffDisplayIdleTimeoutSec=1800
+
+[AC][SuspendAndShutdown]
+AutoSuspendIdleTimeoutSec=5400
+
+[Battery][Display]
+TurnOffDisplayIdleTimeoutSec=1800
+
+[Battery][SuspendAndShutdown]
+AutoSuspendIdleTimeoutSec=5400
