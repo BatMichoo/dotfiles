@@ -20,10 +20,17 @@ fi
 kwriteconfig6 --file kdeglobals --group General --key TerminalApplication "ghostty"
 kwriteconfig6 --file kdeglobals --group General --key TerminalService "com.mitchellh.ghostty.desktop"
 
-if command -v xdg-mime >/dev/null 2>&1; then
-    log_info "Setting Neovim as default plain text handler..."
-    xdg-mime default nvim.desktop text/plain
+log_info "Setting Neovim as default plain text handler..."
+MIME_FILE="$HOME/.config/mimeapps.list"
+
+# Ensure the [Default Applications] section exists
+if ! grep -q "\[Default Applications\]" "$MIME_FILE"; then
+    echo "[Default Applications]" >> "$MIME_FILE"
 fi
+
+# Remove any pre-existing text/plain assignments and add the Neovim definition
+sed -i '/text\/plain=/d' "$MIME_FILE"
+sed -i '/\[Default Applications\]/a text\/plain=nvim.desktop;' "$MIME_FILE"
 
 # Configure Single Click to Open Files & Folders
 kwriteconfig6 --file kdeglobals --group KDE --key SingleClick true
