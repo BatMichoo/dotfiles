@@ -160,7 +160,7 @@ fi
 log_info "Updating submodules recursively..."
 dotfiles_git submodule update --init --recursive
 
-# 7. Run System Setup Script
+# 7. Run System Setup Script (Programming Tools)
 SYS_SETUP_PATH="$HOME/.local/bin/sys-setup.sh"
 if [ -f "$SYS_SETUP_PATH" ]; then
     log_info "Running system packages installation..."
@@ -168,6 +168,17 @@ if [ -f "$SYS_SETUP_PATH" ]; then
     "$SYS_SETUP_PATH" install
 else
     log_error "Error: sys-setup.sh not found after checkout. Setup incomplete."
+    exit 1
+fi
+
+# 8. Run General Applications Script (Discord, Steam, Chrome)
+APPS_SETUP_PATH="$HOME/.local/bin/apps-setup.sh"
+if [ -f "$APPS_SETUP_PATH" ]; then
+    log_info "Running general apps installation (Discord, Steam, Chrome)..."
+    chmod +x "$APPS_SETUP_PATH"
+    "$APPS_SETUP_PATH" install
+else
+    log_error "Error: apps-setup.sh not found after checkout. Setup incomplete."
     exit 1
 fi
 
