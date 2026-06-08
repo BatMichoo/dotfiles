@@ -237,11 +237,45 @@ antigravity_c() {
     rm -rf "$HOME/.config/Antigravity" "$HOME/.gemini/antigravity-cli" || true
 }
 
+# --- GHOSTTY ---
+ghostty_i() {
+    log_info "Installing Ghostty Terminal..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -S --noconfirm ghostty
+    else
+        if ! sudo apt-get install -y ghostty 2>/dev/null; then
+            if command -v add-apt-repository >/dev/null 2>&1; then
+                log_info "Ghostty not found in standard apt repository. Adding PPA..."
+                sudo add-apt-repository ppa:mkasberg/ghostty-ubuntu -y
+                sudo apt-get update
+                sudo apt-get install -y ghostty
+            else
+                log_error "Ghostty could not be installed automatically via apt."
+            fi
+        fi
+    fi
+}
+
+ghostty_c() {
+    log_info "Cleaning Ghostty Terminal..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -Rns --noconfirm ghostty || true
+    else
+        sudo apt-get purge -y ghostty || true
+        sudo apt-get autoremove -y || true
+        if [ -f /etc/apt/sources.list.d/mkasberg-ubuntu-ghostty-ubuntu-*.list ]; then
+            sudo add-apt-repository --remove ppa:mkasberg/ghostty-ubuntu -y || true
+            sudo apt-get update || true
+        fi
+    fi
+}
+
 # --- BULK COMMANDS ---
 install_all() {
     log_info "Starting full installation..."
     sys_update
     build_ess_i
+    ghostty_i
     dotnet_i
     node_i
     go_i
@@ -264,6 +298,7 @@ clean_all() {
     node_c
     dotnet_c
     build_ess_c
+    ghostty_c
     log_info "Full cleanup completed!"
 }
 
@@ -276,7 +311,7 @@ show_help() {
     echo "  update               Run system update"
     echo ""
     echo "Components:"
-    echo "  build-ess, dotnet, go, node, nvim, lazygit, treesitter, rust, antigravity"
+    echo "  build-ess, ghostty, dotnet, go, node, nvim, lazygit, treesitter, rust, antigravity"
     echo ""
     echo "Legacy Target Support:"
     echo "  <component>-i        Same as 'install <component>'"
@@ -325,6 +360,9 @@ case "$COMPONENT" in
         ;;
     build-ess)
         if [ "$ACTION" = "install" ]; then build_ess_i; else build_ess_c; fi
+        ;;
+    ghostty)
+        if [ "$ACTION" = "install" ]; then ghostty_i; else ghostty_c; fi
         ;;
     dotnet)
         if [ "$ACTION" = "install" ]; then dotnet_i; else dotnet_c; fi
