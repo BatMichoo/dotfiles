@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
+# Main Dotfiles Setup & Orchestration Entry Script
 set -euo pipefail
 
-# Configurations
-DOTFILES_DIR="$HOME/.dotfiles"
-TARGET_REMOTE="git@github.com:BatMichoo/dotfiles.git"
-BACKUP_DIR_BASE="$HOME/.dotfiles-backup"
-
-dotfiles_git() {
-    git --git-dir="$DOTFILES_DIR/" --work-tree="$HOME" "$@"
-}
-
+# Helper Logging
 log_info() {
     echo -e "\033[1;34m[INFO]\033[0m $1"
 }
@@ -28,139 +21,190 @@ else
     exit 1
 fi
 
-echo "==========================================="
-echo "    🌌 Unified Dotfiles Bootstrap Setup"
-echo "==========================================="
-echo
+# Flags initialized to false
+RUN_BOOTSTRAP=false
+RUN_KDE=false
+RUN_SYS=false
+RUN_APPS=false
 
-# 2. Run SSH & passphrase configuration via downloaded script
-SSH_DIR="$HOME/.ssh"
-KEY_PATH="$SSH_DIR/id_ed25519"
+show_help() {
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Options:"
+    echo "  -b, --bootstrap    Run SSH setup and repository bootstrap setup"
+    echo "  -k, --kde          Run KDE settings setup"
+    echo "  -s, --sys          Run system programming packages installation"
+    echo "  -a, --apps         Run general applications installation"
+    echo "  --all              Run all setup steps in order"
+    echo "  --skip-sys         Run Bootstrap, KDE, and Apps setups (skip system packages)"
+    echo "  -h, --help         Show this help message"
+}
 
-if [ ! -f "$KEY_PATH" ]; then
-    log_info "No SSH key found. Downloading and running github-ssh-setup.sh..."
-    SSH_SETUP_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/github-ssh-setup.sh"
-    curl -fsSL "$SSH_SETUP_URL" -o /tmp/github-ssh-setup.sh
-    chmod +x /tmp/github-ssh-setup.sh
-    /tmp/github-ssh-setup.sh
-else
-    log_info "Existing SSH key found at $KEY_PATH. Proceeding..."
+# Parse options
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -b|--bootstrap)
+            RUN_BOOTSTRAP=true
+            shift
+            ;;
+        -k|--kde)
+            RUN_KDE=true
+            shift
+            ;;
+        -s|--sys)
+            RUN_SYS=true
+            shift
+            ;;
+        -a|--apps)
+            RUN_APPS=true
+            shift
+            ;;
+        --all)
+            RUN_BOOTSTRAP=true
+            RUN_KDE=true
+            RUN_SYS=true
+            RUN_APPS=true
+            shift
+            ;;
+        --skip-sys)
+            RUN_BOOTSTRAP=true
+            RUN_KDE=true
+            RUN_APPS=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# If no flags are set, run the interactive menu
+if [ "$RUN_BOOTSTRAP" = false ] && [ "$RUN_KDE" = false ] && [ "$RUN_SYS" = false ] && [ "$RUN_APPS" = false ]; then
+    echo "==========================================="
+    echo "    🌌 Unified Dotfiles Bootstrap Setup"
+    echo "==========================================="
+    echo "1) Full Setup (Bootstrap, KDE, System, Apps)"
+    echo "2) KDE & Apps Setup (Skip System/Programming packages)"
+    echo "3) Run Bootstrap Only (SSH Setup & Git Repo Setup)"
+    echo "4) Configure KDE Desktop Only (kde-setup.sh)"
+    echo "5) Install System Packages Only (sys-setup.sh)"
+    echo "6) Install General Apps Only (apps-setup.sh)"
+    echo "7) Exit"
+    echo "==========================================="
+    read -p "Select option [1-7]: " OPTION
+    case "$OPTION" in
+        1)
+            RUN_BOOTSTRAP=true
+            RUN_KDE=true
+            RUN_SYS=true
+            RUN_APPS=true
+            ;;
+        2)
+            RUN_BOOTSTRAP=true
+            RUN_KDE=true
+            RUN_APPS=true
+            ;;
+        3)
+            RUN_BOOTSTRAP=true
+            ;;
+        4)
+            RUN_KDE=true
+            ;;
+        5)
+            RUN_SYS=true
+            ;;
+        6)
+            RUN_APPS=true
+            ;;
+        *)
+            echo "Exiting..."
+            exit 0
+            ;;
+    esac
 fi
 
-# Start ssh-agent in the current session so git clone works immediately
-eval "$(ssh-agent -s)"
-ssh-add "$KEY_PATH" || true
-
-
-# 3. Clean Bare Repository Cloning
-echo
-log_info "Setting up bare Git repository..."
-if [ ! -d "$DOTFILES_DIR" ]; then
-    log_info "Cloning bare repository from GitHub..."
-    dotfiles_git clone --bare "$TARGET_REMOTE" "$DOTFILES_DIR"
-else
-    log_info "Bare repository directory $DOTFILES_DIR already exists."
-fi
-
-# Apply visibility and rule constraints immediately to the cloned engine
-log_info "Configuring repository parameters..."
-dotfiles_git config --local status.showUntrackedFiles no
-
-# Configure exclude rules for the bare repository
-mkdir -p "$DOTFILES_DIR/info"
-cat << 'EOF' > "$DOTFILES_DIR/info/exclude"
-# Ignore system/caching folders
-.cache/
-.dbus/
-.local/share/Trash/
-.cargo/
-.npm/
-
-# Ignore sensitive keys and private data
-.ssh/id_*
-.ssh/known_hosts*
-.gnupg/
-
-# Ignore temp files and histories
-.node_repl_history
-.bash_history
-.lesshst
-EOF
-
-
-# 4. Extract Configurations (Checkout Files to Disk)
-log_info "Checking out dotfiles into active working tree..."
-
-# Natively attempt checkout now that the bare clone tracked structural state perfectly
-if ! dotfiles_git checkout main 2>/dev/null; then
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    CURRENT_BACKUP_DIR="$BACKUP_DIR_BASE/$TIMESTAMP"
-    log_info "Collision detected. Safely backing up conflicting local files to $CURRENT_BACKUP_DIR..."
-
-    # Query Git directly via diff for paths conflicting with the remote state
-    dotfiles_git diff --name-only origin/main | while read -r file; do
-        if [ -n "$file" ] && [ -e "$HOME/$file" ]; then
-            mkdir -p "$CURRENT_BACKUP_DIR/$(dirname "$file")"
-            mv "$HOME/$file" "$CURRENT_BACKUP_DIR/$file"
-            echo "  Moved: $file -> $CURRENT_BACKUP_DIR/$file"
-        fi
-    done
-
-    log_info "Retrying final configuration checkout..."
-    dotfiles_git checkout main
-else
-    log_info "Successfully completed dotfiles repository checkout."
-fi
-
-log_info "Updating submodules recursively..."
-dotfiles_git submodule update --init --recursive
-
-
-# 5. Environment Fallbacks & Overrides
-# Note: Your Fish alias file (dotfiles.fish) is now cleanly dropped in place by the checkout.
-if [ -f "$HOME/.bashrc" ] && ! grep -q "export EDITOR=" "$HOME/.bashrc"; then
-    log_info "Configuring default editor fallback in ~/.bashrc..."
-    echo -e "\n# Set default editor to Neovim\nexport EDITOR=nvim\nexport VISUAL=nvim" >> "$HOME/.bashrc"
-fi
-
-
-# 6. Run Desktop Configuration Scripts (Now safely present on disk)
-log_info "Running KDE desktop setup script..."
+# Define target paths
+SSH_SETUP_PATH="$HOME/.local/bin/github-ssh-setup.sh"
+REPO_SETUP_PATH="$HOME/.local/bin/repo-setup.sh"
 KDE_SETUP_PATH="$HOME/.local/bin/kde-setup.sh"
-if [ -f "$KDE_SETUP_PATH" ]; then
-    chmod +x "$KDE_SETUP_PATH"
-    "$KDE_SETUP_PATH" || log_error "Warning: kde-setup.sh exited with an error status."
-else
-    log_error "Warning: kde-setup.sh not found on disk. Skipping KDE setup configuration."
-fi
-
-
-# 7. Run System Setup Script (Programming Tools)
 SYS_SETUP_PATH="$HOME/.local/bin/sys-setup.sh"
-if [ -f "$SYS_SETUP_PATH" ]; then
-    log_info "Running system packages installation..."
-    chmod +x "$SYS_SETUP_PATH"
-    "$SYS_SETUP_PATH" install
-else
-    log_error "Error: sys-setup.sh not found after checkout. Setup incomplete."
-    exit 1
+APPS_SETUP_PATH="$HOME/.local/bin/apps-setup.sh"
+
+SSH_SETUP_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/github-ssh-setup.sh"
+REPO_SETUP_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/repo-setup.sh"
+
+run_bootstrap() {
+    # 1. Run SSH setup
+    if [ -f "$SSH_SETUP_PATH" ]; then
+        chmod +x "$SSH_SETUP_PATH"
+        "$SSH_SETUP_PATH"
+    else
+        log_info "Downloading github-ssh-setup.sh..."
+        curl -fsSL "$SSH_SETUP_URL" -o /tmp/github-ssh-setup.sh
+        chmod +x /tmp/github-ssh-setup.sh
+        /tmp/github-ssh-setup.sh
+    fi
+
+    # Start ssh-agent in the current session so repo setup works immediately
+    SSH_DIR="$HOME/.ssh"
+    KEY_PATH="$SSH_DIR/id_ed25519"
+    eval "$(ssh-agent -s)"
+    ssh-add "$KEY_PATH" || true
+
+    # 2. Run Repo Setup
+    if [ -f "$REPO_SETUP_PATH" ]; then
+        chmod +x "$REPO_SETUP_PATH"
+        "$REPO_SETUP_PATH"
+    else
+        log_info "Downloading repo-setup.sh..."
+        curl -fsSL "$REPO_SETUP_URL" -o /tmp/repo-setup.sh
+        chmod +x /tmp/repo-setup.sh
+        /tmp/repo-setup.sh
+    fi
+}
+
+# Execute components in dependency order: Bootstrap -> KDE -> Sys -> Apps
+if [ "$RUN_BOOTSTRAP" = true ]; then
+    run_bootstrap
 fi
 
+if [ "$RUN_KDE" = true ]; then
+    if [ -f "$KDE_SETUP_PATH" ]; then
+        chmod +x "$KDE_SETUP_PATH"
+        "$KDE_SETUP_PATH"
+    else
+        log_error "Error: kde-setup.sh not found on disk. Run bootstrap first."
+        exit 1
+    fi
+fi
 
-# 8. Run General Applications Script (Discord, Steam, Chrome)
-APPS_SETUP_PATH="$HOME/.local/bin/apps-setup.sh"
-if [ -f "$APPS_SETUP_PATH" ]; then
-    log_info "Running general apps installation (Discord, Steam, Chrome)..."
-    chmod +x "$APPS_SETUP_PATH"
-    "$APPS_SETUP_PATH" install
-else
-    log_error "Error: apps-setup.sh not found after checkout. Setup incomplete."
-    exit 1
+if [ "$RUN_SYS" = true ]; then
+    if [ -f "$SYS_SETUP_PATH" ]; then
+        chmod +x "$SYS_SETUP_PATH"
+        "$SYS_SETUP_PATH" install
+    else
+        log_error "Error: sys-setup.sh not found on disk. Run bootstrap first."
+        exit 1
+    fi
+fi
+
+if [ "$RUN_APPS" = true ]; then
+    if [ -f "$APPS_SETUP_PATH" ]; then
+        chmod +x "$APPS_SETUP_PATH"
+        "$APPS_SETUP_PATH" install
+    else
+        log_error "Error: apps-setup.sh not found on disk. Run bootstrap first."
+        exit 1
+    fi
 fi
 
 echo
 echo "==========================================="
-echo "    🎉 Environment Setup Complete!"
-echo "    Please restart your session/logout to"
-echo "    apply KDE settings completely."
+echo "    🎉 Setup Action(s) Complete!"
 echo "==========================================="

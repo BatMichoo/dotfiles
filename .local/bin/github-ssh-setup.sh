@@ -31,70 +31,79 @@ else
     log_info "ksshaskpass is already installed."
 fi
 
-# 2. Prompts
-echo "=============================="
-echo "   GitHub SSH Key Generator"
-echo "=============================="
-echo
-
-read -p "Enter your GitHub email address: " EMAIL
-
-# Secure passphrase prompt
-read -s -p "Enter a passphrase for your new SSH key (leave empty for none): " PASS_1
-echo
-read -s -p "Confirm your passphrase: " PASS_2
-echo
-
-if [ "$PASS_1" != "$PASS_2" ]; then
-    log_error "Passphrases do not match. Please run the script again."
-    exit 1
-fi
-
-# 3. Key Generation
+# 2. Key Check & Generation
 SSH_DIR="$HOME/.ssh"
 KEY_PATH="$SSH_DIR/id_ed25519"
 
-mkdir -p "$SSH_DIR"
-chmod 700 "$SSH_DIR"
-
 if [ -f "$KEY_PATH" ]; then
-    BACKUP_PATH="${KEY_PATH}_backup_$(date +%Y%m%d_%H%M%S)"
-    log_info "Existing SSH key found. Backing up to $BACKUP_PATH..."
-    mv "$KEY_PATH" "$BACKUP_PATH"
-    if [ -f "${KEY_PATH}.pub" ]; then
-        mv "${KEY_PATH}.pub" "${BACKUP_PATH}.pub"
+    log_info "Existing SSH key found at $KEY_PATH. Skipping generation."
+else
+    # Prompts
+    echo "=============================="
+    echo "   GitHub SSH Key Generator"
+    echo "=============================="
+    echo
+
+    read -p "Enter your GitHub email address: " EMAIL
+
+    # Secure passphrase prompt
+    read -s -p "Enter a passphrase for your new SSH key (leave empty for none): " PASS_1
+    echo
+    read -s -p "Confirm your passphrase: " PASS_2
+    echo
+
+    if [ "$PASS_1" != "$PASS_2" ]; then
+        log_error "Passphrases do not match. Please run the script again."
+        exit 1
     fi
+
+    mkdir -p "$SSH_DIR"
+    chmod 700 "$SSH_DIR"
+
+    log_info "Generating new Ed25519 SSH key..."
+    ssh-keygen -t ed25519 -C "$EMAIL" -N "$PASS_1" -f "$KEY_PATH"
 fi
 
-log_info "Generating new Ed25519 SSH key..."
-ssh-keygen -t ed25519 -C "$EMAIL" -N "$PASS_1" -f "$KEY_PATH"
-
-# 4. KDE Environment Configuration for ksshaskpass
+# 3. KDE Environment Configuration for ksshaskpass
 ENV_DIR="$HOME/.config/plasma-workspace/env"
-mkdir -p "$ENV_DIR"
-cat << 'EOF' > "$ENV_DIR/ssh-askpass.sh"
+ASKPASS_CONFIG="$ENV_DIR/ssh-askpass.sh"
+if [ -f "$ASKPASS_CONFIG" ]; then
+    log_info "KDE workspace SSH askpass environment already configured."
+else
+    mkdir -p "$ENV_DIR"
+    cat << 'EOF' > "$ASKPASS_CONFIG"
 export SSH_ASKPASS="/usr/bin/ksshaskpass"
 export SSH_ASKPASS_REQUIRE="prefer"
 EOF
-chmod +x "$ENV_DIR/ssh-askpass.sh"
-log_info "Configured KDE workspace SSH askpass environment."
+    chmod +x "$ASKPASS_CONFIG"
+    log_info "Configured KDE workspace SSH askpass environment."
+fi
 
-# 5. Autostart Script Configuration
+# 4. Autostart Script Configuration
 BIN_DIR="$HOME/.local/bin"
-mkdir -p "$BIN_DIR"
-cat << 'EOF' > "$BIN_DIR/ssh-add-keys.sh"
+ADD_KEYS_SCRIPT="$BIN_DIR/ssh-add-keys.sh"
+if [ -f "$ADD_KEYS_SCRIPT" ]; then
+    log_info "Key-adder script already exists at $ADD_KEYS_SCRIPT."
+else
+    mkdir -p "$BIN_DIR"
+    cat << 'EOF' > "$ADD_KEYS_SCRIPT"
 #!/usr/bin/env bash
 # Wait for KDE desktop environment and KWallet to settle
 sleep 3
 ssh-add -q "$HOME/.ssh/id_ed25519" </dev/null
 EOF
-chmod +x "$BIN_DIR/ssh-add-keys.sh"
-log_info "Created key-adder script at ~/.local/bin/ssh-add-keys.sh"
+    chmod +x "$ADD_KEYS_SCRIPT"
+    log_info "Created key-adder script at $ADD_KEYS_SCRIPT"
+fi
 
-# 6. KDE Autostart Desktop Entry Configuration
+# 5. KDE Autostart Desktop Entry Configuration
 AUTOSTART_DIR="$HOME/.config/autostart"
-mkdir -p "$AUTOSTART_DIR"
-cat << 'EOF' > "$AUTOSTART_DIR/ssh-add-keys.desktop"
+ADD_KEYS_DESKTOP="$AUTOSTART_DIR/ssh-add-keys.desktop"
+if [ -f "$ADD_KEYS_DESKTOP" ]; then
+    log_info "Key-adder already registered in KDE autostart."
+else
+    mkdir -p "$AUTOSTART_DIR"
+    cat << 'EOF' > "$ADD_KEYS_DESKTOP"
 [Desktop Entry]
 Exec=/home/batmicho/.local/bin/ssh-add-keys.sh
 Icon=dialog-password
@@ -103,20 +112,26 @@ Path=
 Type=Application
 X-KDE-AutostartScript=true
 EOF
-log_info "Registered key-adder in KDE autostart."
+    log_info "Registered key-adder in KDE autostart."
+fi
+
+# 6. Start ssh-agent and add key immediately
+log_info "Starting ssh-agent and adding the key..."
+eval "$(ssh-agent -s)"
+ssh-add "$KEY_PATH" || true
 
 # 7. Instructions & Output
 echo
 echo "=================================================="
 echo "                  SUCCESS!"
 echo "=================================================="
-echo "Your new SSH key has been generated."
+echo "SSH configuration verified."
 echo "Here is your public key. Copy the box below:"
 echo "--------------------------------------------------"
 cat "${KEY_PATH}.pub"
 echo "--------------------------------------------------"
 echo
-echo "Please add it to your GitHub account:"
+echo "Please add it to your GitHub account if you haven't already:"
 echo "👉 https://github.com/settings/keys"
 echo
 echo "Note: The next time you log in, KDE will prompt you"
