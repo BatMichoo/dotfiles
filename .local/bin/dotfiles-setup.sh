@@ -151,12 +151,6 @@ run_bootstrap() {
         /tmp/github-ssh-setup.sh
     fi
 
-    # Start ssh-agent in the current session so repo setup works immediately
-    SSH_DIR="$HOME/.ssh"
-    KEY_PATH="$SSH_DIR/id_ed25519"
-    eval "$(ssh-agent -s)"
-    ssh-add "$KEY_PATH" || true
-
     # 2. Run Repo Setup
     if [ -f "$REPO_SETUP_PATH" ]; then
         chmod +x "$REPO_SETUP_PATH"

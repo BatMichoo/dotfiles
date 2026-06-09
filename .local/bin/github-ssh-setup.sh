@@ -116,26 +116,46 @@ EOF
 fi
 
 # 6. Start ssh-agent and add key immediately
-log_info "Starting ssh-agent and adding the key..."
-eval "$(ssh-agent -s)"
-ssh-add "$KEY_PATH" || true
+KEY_LOADED=false
+if [ -f "$KEY_PATH" ]; then
+    if ssh-add -l >/dev/null 2>&1 || [ $? -eq 1 ]; then
+        KEY_FP=$(ssh-keygen -lf "$KEY_PATH" | awk '{print $2}')
+        if ssh-add -l | grep -Fq "$KEY_FP"; then
+            KEY_LOADED=true
+        fi
+    fi
+fi
 
-# 7. Instructions & Output
-echo
-echo "=================================================="
-echo "                  SUCCESS!"
-echo "=================================================="
-echo "SSH configuration verified."
-echo "Here is your public key. Copy the box below:"
-echo "--------------------------------------------------"
-cat "${KEY_PATH}.pub"
-echo "--------------------------------------------------"
-echo
-echo "Please add it to your GitHub account if you haven't already:"
-echo "👉 https://github.com/settings/keys"
-echo
-echo "Note: The next time you log in, KDE will prompt you"
-echo "graphically for your passphrase. Make sure to check"
-echo "the 'Remember password' checkbox so KWallet saves it"
-echo "permanently."
-echo "=================================================="
+if [ "$KEY_LOADED" = true ]; then
+    log_info "SSH key is already loaded in the active ssh-agent. Skipping agent start and key printing."
+else
+    # If agent is already running but key is not loaded, just add the key
+    if ssh-add -l >/dev/null 2>&1 || [ $? -eq 1 ]; then
+        log_info "Active ssh-agent detected. Adding key..."
+        ssh-add "$KEY_PATH"
+    else
+        log_info "Starting ssh-agent and adding the key..."
+        eval "$(ssh-agent -s)"
+        ssh-add "$KEY_PATH"
+    fi
+
+    # 7. Instructions & Output
+    echo
+    echo "=================================================="
+    echo "                  SUCCESS!"
+    echo "=================================================="
+    echo "SSH configuration verified."
+    echo "Here is your public key. Copy the box below:"
+    echo "--------------------------------------------------"
+    cat "${KEY_PATH}.pub"
+    echo "--------------------------------------------------"
+    echo
+    echo "Please add it to your GitHub account if you haven't already:"
+    echo "👉 https://github.com/settings/keys"
+    echo
+    echo "Note: The next time you log in, KDE will prompt you"
+    echo "graphically for your passphrase. Make sure to check"
+    echo "the 'Remember password' checkbox so KWallet saves it"
+    echo "permanently."
+    echo "=================================================="
+fi
