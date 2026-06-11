@@ -58,7 +58,15 @@ kwriteconfig6 --file powerdevilrc --group AC --group SuspendAndShutdown --key Au
 kwriteconfig6 --file powerdevilrc --group Battery --group Display --key TurnOffDisplayIdleTimeoutSec 1800
 kwriteconfig6 --file powerdevilrc --group Battery --group SuspendAndShutdown --key AutoSuspendIdleTimeoutSec 5400
 
-# E. Live Configuration Reloads
+# E. Screen Locker settings (30m lock timeout to match screen off timeout)
+kwriteconfig6 --file kscreenlockerrc --group Daemon --key Timeout 30
+
+# F. Mouse Settings (Flat acceleration profile & low sensitivity)
+kwriteconfig6 --file kcminputrc --group Libinput --group Defaults --key PointerAccelerationProfile 1
+kwriteconfig6 --file kcminputrc --group Libinput --group 3504 --group 3374 --group "MSI MSI GM20 Elite  Mouse" --key PointerAccelerationProfile 1
+kwriteconfig6 --file kcminputrc --group Libinput --group 3504 --group 3374 --group "MSI MSI GM20 Elite  Mouse" --key PointerAcceleration -- -1.000
+
+# G. Live Configuration Reloads
 if command -v gdbus >/dev/null 2>&1; then
     gdbus call --session --dest org.kde.KWin --object-path /KWin --method org.kde.KWin.reconfigure >/dev/null 2>&1 || true
     (systemctl --user restart plasma-kglobalaccel.service >/dev/null 2>&1 || true)
