@@ -237,6 +237,89 @@ antigravity_c() {
     rm -rf "$HOME/.config/Antigravity" "$HOME/.gemini/antigravity-cli" || true
 }
 
+# --- GEMINI CLI ---
+# Note: skill/plugin installs run through `agy` (Antigravity CLI), which is
+# how Gemini CLI's plugin system is invoked now. Requires the 'antigravity'
+# component installed first.
+gemini_i() {
+    log_info "Installing Gemini CLI..."
+    if ! command -v npm >/dev/null 2>&1; then
+        log_error "npm not found. Install the 'node' component first."
+        return 1
+    fi
+    npm install -g @google/gemini-cli
+
+    if ! command -v agy >/dev/null 2>&1; then
+        log_error "agy not found. Install the 'antigravity' component first to get Gemini CLI's plugin/skill installs."
+        return 0
+    fi
+
+    log_info "Installing caveman plugin for Gemini CLI (agy)..."
+    agy plugin install https://github.com/JuliusBrussee/caveman || \
+        log_error "Failed to install caveman plugin for Gemini CLI."
+
+    log_info "Installing superpowers plugin for Gemini CLI (agy)..."
+    agy plugin install https://github.com/obra/superpowers || \
+        log_error "Failed to install superpowers plugin for Gemini CLI."
+}
+
+gemini_c() {
+    log_info "Cleaning Gemini CLI..."
+    if command -v agy >/dev/null 2>&1; then
+        agy plugin uninstall caveman || true
+        agy plugin uninstall superpowers || true
+    fi
+    if command -v npm >/dev/null 2>&1; then
+        npm uninstall -g @google/gemini-cli || true
+    fi
+}
+
+# --- CLAUDE CODE CLI ---
+claude_i() {
+    log_info "Installing Claude Code CLI..."
+    curl -fsSL https://claude.ai/install.sh | bash
+
+    log_info "Installing caveman plugin for Claude Code..."
+    claude plugin marketplace add JuliusBrussee/caveman
+    claude plugin install caveman@caveman
+
+    log_info "Installing superpowers plugin for Claude Code..."
+    claude plugin install superpowers@claude-plugins-official
+}
+
+claude_c() {
+    log_info "Cleaning Claude Code CLI..."
+    if command -v claude >/dev/null 2>&1; then
+        claude plugin uninstall superpowers@claude-plugins-official || true
+        claude plugin uninstall caveman@caveman || true
+        claude plugin marketplace remove JuliusBrussee/caveman || true
+    fi
+    rm -f "$HOME/.local/bin/claude" || true
+    rm -rf "$HOME/.local/share/claude" || true
+}
+
+# Prompts to pick which AI CLI(s) to install as part of a full run,
+# rather than installing both unconditionally.
+ai_cli_select() {
+    if [ ! -t 0 ]; then
+        log_info "No interactive terminal detected. Skipping AI CLI selection (run 'sys-setup.sh install gemini' or 'install claude' manually)."
+        return 0
+    fi
+
+    echo "AI CLI tools:"
+    echo "  1) Gemini CLI"
+    echo "  2) Claude Code CLI"
+    echo "  3) Both"
+    echo "  4) Skip"
+    read -r -p "Select option [1-4]: " AI_CHOICE
+    case "$AI_CHOICE" in
+        1) gemini_i ;;
+        2) claude_i ;;
+        3) gemini_i; claude_i ;;
+        4|*) log_info "Skipping AI CLI installation." ;;
+    esac
+}
+
 # --- GHOSTTY ---
 ghostty_i() {
     log_info "Installing Ghostty Terminal..."
@@ -283,6 +366,7 @@ install_all() {
     nvim_i
     lazygit_i
     antigravity_i
+    ai_cli_select
     treesitter_i
     log_info "Full installation completed!"
 }
@@ -290,6 +374,8 @@ install_all() {
 clean_all() {
     log_info "Starting full cleanup..."
     treesitter_c
+    claude_c
+    gemini_c
     antigravity_c
     lazygit_c
     nvim_c
@@ -311,7 +397,7 @@ show_help() {
     echo "  update               Run system update"
     echo ""
     echo "Components:"
-    echo "  build-ess, ghostty, dotnet, go, node, nvim, lazygit, treesitter, rust, antigravity"
+    echo "  build-ess, ghostty, dotnet, go, node, nvim, lazygit, treesitter, rust, antigravity, gemini, claude"
     echo ""
     echo "Legacy Target Support:"
     echo "  <component>-i        Same as 'install <component>'"
@@ -387,6 +473,12 @@ case "$COMPONENT" in
         ;;
     antigravity)
         if [ "$ACTION" = "install" ]; then antigravity_i; else antigravity_c; fi
+        ;;
+    gemini)
+        if [ "$ACTION" = "install" ]; then gemini_i; else gemini_c; fi
+        ;;
+    claude)
+        if [ "$ACTION" = "install" ]; then claude_i; else claude_c; fi
         ;;
     *)
         log_error "Unknown component: $COMPONENT"
