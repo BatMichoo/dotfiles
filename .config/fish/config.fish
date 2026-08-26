@@ -10,7 +10,7 @@ set -gx EDITOR nvim
 set -gx VISUAL nvim
 
 if status is-interactive
-    keychain --eval --quiet --agents ssh id_ed25519 | source
+    keychain add --eval --quiet id_ed25519 | source
 end
 fnm env --use-on-cd --shell fish | source
 
