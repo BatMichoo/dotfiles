@@ -1,0 +1,14 @@
+# Initial window size, approximating 1200x720px (720p).
+#
+# Ghostty sizes windows in terminal grid cells, not pixels (it has no
+# native pixel-size option yet). These values are derived from the default
+# JetBrains Mono font at font-size=12 assuming 96 DPI / 1.0 display scale:
+#   cell width  ~= 12pt * (96/72) * 0.6 ~= 9.6px  -> 1200 / 9.6 = 125 cols
+#   cell height ~= 12pt * (96/72) * 1.2 ~= 19.2px -> 720 / 19.2 = 37.5 -> 38 rows
+#
+# This is an approximation: actual pixel size depends on display scaling
+# and Ghostty has a known Linux/GTK bug where window decorations aren't
+# fully accounted for. Adjust window-width/window-height below if the
+# real window doesn't match 1200x720.
+window-width = 125
+window-height = 38
