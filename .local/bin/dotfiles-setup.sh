@@ -135,6 +135,7 @@ REPO_SETUP_PATH="$HOME/.local/bin/repo-setup.sh"
 KDE_SETUP_PATH="$HOME/.local/bin/kde-setup.sh"
 SYS_SETUP_PATH="$HOME/.local/bin/sys-setup.sh"
 APPS_SETUP_PATH="$HOME/.local/bin/apps-setup.sh"
+RELOAD_SERVICES_PATH="$HOME/.local/bin/reload-services.sh"
 
 SSH_SETUP_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/github-ssh-setup.sh"
 REPO_SETUP_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/repo-setup.sh"
@@ -196,6 +197,11 @@ if [ "$RUN_APPS" = true ]; then
         log_error "Error: apps-setup.sh not found on disk. Run bootstrap first."
         exit 1
     fi
+fi
+
+if [ -f "$RELOAD_SERVICES_PATH" ]; then
+    chmod +x "$RELOAD_SERVICES_PATH"
+    "$RELOAD_SERVICES_PATH"
 fi
 
 echo

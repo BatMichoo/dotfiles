@@ -56,3 +56,4 @@ The environment configuration is split into modular scripts located in `.local/b
 - **`sys-setup.sh`** — Developer environment package installer (Build essentials, Ghostty, Node.js/fnm, Go, Rust, .NET SDK, Neovim, Lazygit, Tree-sitter).
 - **`apps-setup.sh`** — Installer script for general applications (Discord, Steam, Google Chrome).
 - **`github-ssh-setup.sh`** — Helper script to generate and print SSH keys for GitHub integration.
+- **`reload-services.sh`** — Restarts single-instance user services (e.g. Ghostty's D-Bus-activated daemon) that cache their config at startup, so dotfile edits take effect without a logout. Runs automatically at the end of every `dotfiles-setup.sh` pass.
