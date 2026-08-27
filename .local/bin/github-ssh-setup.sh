@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1. OS Detection & ksshaskpass installation
-if [ -f /etc/arch-release ]; then
+# 1. OS Detection & ksshaskpass installation (DOTFILES_TEST_OS overrides for testing)
+if [ -n "${DOTFILES_TEST_OS:-}" ]; then
+    OS="$DOTFILES_TEST_OS"
+elif [ -f /etc/arch-release ]; then
     OS="arch"
 elif [ -f /etc/debian_version ]; then
     OS="debian"
@@ -19,16 +21,16 @@ log_error() {
     echo -e "\033[1;31m[ERROR]\033[0m $1" >&2
 }
 
-# Ensure ksshaskpass is installed
-if ! command -v ksshaskpass >/dev/null 2>&1; then
-    log_info "Installing ksshaskpass..."
-    if [ "$OS" = "arch" ]; then
+# Ensure ksshaskpass is installed (Arch/CachyOS + KDE Plasma only)
+if [ "$OS" = "arch" ]; then
+    if ! command -v ksshaskpass >/dev/null 2>&1; then
+        log_info "Installing ksshaskpass..."
         sudo pacman -S --noconfirm ksshaskpass
     else
-        sudo apt-get update && sudo apt-get install -y ksshaskpass
+        log_info "ksshaskpass is already installed."
     fi
 else
-    log_info "ksshaskpass is already installed."
+    log_info "Skipping ksshaskpass (KDE Plasma-specific, Arch/CachyOS only)."
 fi
 
 # 2. Key Check & Generation
@@ -64,55 +66,64 @@ else
     ssh-keygen -t ed25519 -C "$EMAIL" -N "$PASS_1" -f "$KEY_PATH"
 fi
 
-# 3. KDE Environment Configuration for ksshaskpass
-ENV_DIR="$HOME/.config/plasma-workspace/env"
-ASKPASS_CONFIG="$ENV_DIR/ssh-askpass.sh"
-if [ -f "$ASKPASS_CONFIG" ]; then
-    log_info "KDE workspace SSH askpass environment already configured."
-else
-    mkdir -p "$ENV_DIR"
-    cat << 'EOF' > "$ASKPASS_CONFIG"
+# 3. KDE Environment Configuration for ksshaskpass (Arch/CachyOS + KDE Plasma only)
+if [ "$OS" = "arch" ]; then
+    ENV_DIR="$HOME/.config/plasma-workspace/env"
+    ASKPASS_CONFIG="$ENV_DIR/ssh-askpass.sh"
+    if [ -f "$ASKPASS_CONFIG" ]; then
+        log_info "KDE workspace SSH askpass environment already configured."
+    else
+        mkdir -p "$ENV_DIR"
+        cat << 'EOF' > "$ASKPASS_CONFIG"
 export SSH_ASKPASS="/usr/bin/ksshaskpass"
 export SSH_ASKPASS_REQUIRE="prefer"
 EOF
-    chmod +x "$ASKPASS_CONFIG"
-    log_info "Configured KDE workspace SSH askpass environment."
+        chmod +x "$ASKPASS_CONFIG"
+        log_info "Configured KDE workspace SSH askpass environment."
+    fi
 fi
 
 # 4. Autostart Script Configuration
-BIN_DIR="$HOME/.local/bin"
-ADD_KEYS_SCRIPT="$BIN_DIR/ssh-add-keys.sh"
-if [ -f "$ADD_KEYS_SCRIPT" ]; then
-    log_info "Key-adder script already exists at $ADD_KEYS_SCRIPT."
-else
-    mkdir -p "$BIN_DIR"
-    cat << 'EOF' > "$ADD_KEYS_SCRIPT"
+# Debian only: Arch/CachyOS gets SSH agent + key loading from keychain in
+# .config/fish/config.fish instead. This autostart path exists to cover
+# Debian, which doesn't get fish/keychain from any script here.
+if [ "$OS" = "debian" ]; then
+    BIN_DIR="$HOME/.local/bin"
+    ADD_KEYS_SCRIPT="$BIN_DIR/ssh-add-keys.sh"
+    if [ -f "$ADD_KEYS_SCRIPT" ]; then
+        log_info "Key-adder script already exists at $ADD_KEYS_SCRIPT."
+    else
+        mkdir -p "$BIN_DIR"
+        cat << 'EOF' > "$ADD_KEYS_SCRIPT"
 #!/usr/bin/env bash
 # Wait for KDE desktop environment and KWallet to settle
 sleep 3
 ssh-add -q "$HOME/.ssh/id_ed25519" </dev/null
 EOF
-    chmod +x "$ADD_KEYS_SCRIPT"
-    log_info "Created key-adder script at $ADD_KEYS_SCRIPT"
-fi
+        chmod +x "$ADD_KEYS_SCRIPT"
+        log_info "Created key-adder script at $ADD_KEYS_SCRIPT"
+    fi
 
-# 5. KDE Autostart Desktop Entry Configuration
-AUTOSTART_DIR="$HOME/.config/autostart"
-ADD_KEYS_DESKTOP="$AUTOSTART_DIR/ssh-add-keys.desktop"
-if [ -f "$ADD_KEYS_DESKTOP" ]; then
-    log_info "Key-adder already registered in KDE autostart."
-else
-    mkdir -p "$AUTOSTART_DIR"
-    cat << 'EOF' > "$ADD_KEYS_DESKTOP"
+    # 5. KDE Autostart Desktop Entry Configuration
+    AUTOSTART_DIR="$HOME/.config/autostart"
+    ADD_KEYS_DESKTOP="$AUTOSTART_DIR/ssh-add-keys.desktop"
+    if [ -f "$ADD_KEYS_DESKTOP" ]; then
+        log_info "Key-adder already registered in KDE autostart."
+    else
+        mkdir -p "$AUTOSTART_DIR"
+        cat << EOF > "$ADD_KEYS_DESKTOP"
 [Desktop Entry]
-Exec=/home/batmicho/.local/bin/ssh-add-keys.sh
+Exec=$ADD_KEYS_SCRIPT
 Icon=dialog-password
 Name=Add SSH Keys
 Path=
 Type=Application
 X-KDE-AutostartScript=true
 EOF
-    log_info "Registered key-adder in KDE autostart."
+        log_info "Registered key-adder in KDE autostart."
+    fi
+else
+    log_info "Skipping ssh-add-keys autostart (Arch/CachyOS uses keychain via fish instead)."
 fi
 
 # 6. Start ssh-agent and add key immediately
@@ -153,9 +164,11 @@ else
     echo "Please add it to your GitHub account if you haven't already:"
     echo "👉 https://github.com/settings/keys"
     echo
-    echo "Note: The next time you log in, KDE will prompt you"
-    echo "graphically for your passphrase. Make sure to check"
-    echo "the 'Remember password' checkbox so KWallet saves it"
-    echo "permanently."
+    if [ "$OS" = "arch" ]; then
+        echo "Note: The next time you log in, KDE will prompt you"
+        echo "graphically for your passphrase. Make sure to check"
+        echo "the 'Remember password' checkbox so KWallet saves it"
+        echo "permanently."
+    fi
     echo "=================================================="
 fi
