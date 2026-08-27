@@ -42,11 +42,18 @@ EOF
     chmod +x "$STUB_BIN/$name"
 }
 
-# sudo just execs its arguments (still logged) so nested stub commands fire.
+# sudo strips any leading VAR=value assignments (mimicking real sudo's
+# handling of e.g. `sudo ACCEPT_EULA=Y apt-get install ...` — a naive
+# `exec "$@"` would instead try to run a program literally named
+# "ACCEPT_EULA=Y" and fail) and execs the rest, so nested stub commands fire.
 stub_sudo() {
     cat > "$STUB_BIN/sudo" <<'EOF'
 #!/usr/bin/env bash
 echo "sudo $*" >> "$STUB_LOG"
+while [[ $# -gt 0 && "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*=.*$ ]]; do
+    export "$1"
+    shift
+done
 exec "$@"
 EOF
     chmod +x "$STUB_BIN/sudo"
@@ -84,7 +91,7 @@ stub_all_common() {
     stub_curl_noop
     for cmd in pacman apt-get add-apt-repository dpkg npm git systemctl gdbus \
                kwriteconfig6 ssh-keygen ssh-add ssh-agent claude agy paru \
-               tar install rustup fnm nvm; do
+               tar install rustup fnm nvm usermod gpasswd tee; do
         stub "$cmd"
     done
 }

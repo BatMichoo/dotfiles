@@ -78,6 +78,48 @@ setup() {
     grep -q "fnm install --lts" "$STUB_LOG"
 }
 
+@test "docker: arch installs docker + docker-compose via pacman and enables the service" {
+    DOTFILES_TEST_OS=arch run bash "$SCRIPT" install docker
+    [ "$status" -eq 0 ]
+    grep -q "pacman -S --noconfirm docker docker-compose" "$STUB_LOG"
+    grep -q "systemctl enable --now docker.service" "$STUB_LOG"
+}
+
+@test "docker: debian installs docker.io + compose plugin via apt-get and enables the service" {
+    DOTFILES_TEST_OS=debian run bash "$SCRIPT" install docker
+    [ "$status" -eq 0 ]
+    grep -q "apt-get install -y docker.io docker-compose-v2" "$STUB_LOG"
+    grep -q "systemctl enable --now docker.service" "$STUB_LOG"
+}
+
+@test "psql: arch installs the postgresql package" {
+    DOTFILES_TEST_OS=arch run bash "$SCRIPT" install psql
+    [ "$status" -eq 0 ]
+    grep -q "pacman -S --noconfirm postgresql" "$STUB_LOG"
+}
+
+@test "psql: debian installs the client-only postgresql-client package" {
+    DOTFILES_TEST_OS=debian run bash "$SCRIPT" install psql
+    [ "$status" -eq 0 ]
+    grep -q "apt-get install -y postgresql-client" "$STUB_LOG"
+}
+
+@test "mssql: arch installs mssql-tools via paru (AUR)" {
+    DOTFILES_TEST_OS=arch run bash "$SCRIPT" install mssql
+    [ "$status" -eq 0 ]
+    grep -q "paru -S --noconfirm mssql-tools" "$STUB_LOG"
+}
+
+@test "mssql: debian registers the Microsoft repo and installs with EULA accepted" {
+    DOTFILES_TEST_OS=debian HOME="$BATS_TEST_TMPDIR/home" run bash "$SCRIPT" install mssql
+    [ "$status" -eq 0 ]
+    grep -q "curl https://packages.microsoft.com/keys/microsoft.asc" "$STUB_LOG"
+    grep -q "curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list" "$STUB_LOG"
+    grep -q "sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev" "$STUB_LOG"
+    grep -q "apt-get install -y mssql-tools18 unixodbc-dev" "$STUB_LOG"
+    grep -q "mssql-tools18/bin" "$BATS_TEST_TMPDIR/home/.bashrc"
+}
+
 @test "rust: no OS branch, always uses rustup installer via curl" {
     DOTFILES_TEST_OS=debian run bash "$SCRIPT" install rust
     [ "$status" -eq 0 ]

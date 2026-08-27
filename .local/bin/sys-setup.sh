@@ -194,6 +194,57 @@ lazygit_c() {
     fi
 }
 
+# --- POSTGRESQL CLIENT (psql) ---
+psql_i() {
+    log_info "Installing PostgreSQL client (psql)..."
+    if [ "$OS" = "arch" ]; then
+        # No client-only split in official Arch repos; this pulls the
+        # server binaries too, but nothing is enabled/started.
+        sudo pacman -S --noconfirm postgresql
+    else
+        sudo apt-get install -y postgresql-client
+    fi
+}
+
+psql_c() {
+    log_info "Cleaning PostgreSQL client..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -Rns --noconfirm postgresql || true
+    else
+        sudo apt-get purge -y postgresql-client || true
+        sudo apt-get autoremove -y || true
+    fi
+}
+
+# --- MICROSOFT SQL SERVER CLI (sqlcmd) ---
+mssql_i() {
+    log_info "Installing sqlcmd (mssql-tools18)..."
+    if [ "$OS" = "arch" ]; then
+        # AUR; pulls the msodbcsql18 dependency automatically.
+        paru -S --noconfirm mssql-tools
+    else
+        curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc >/dev/null
+        curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list >/dev/null
+        sudo apt-get update
+        sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+        if ! grep -q "mssql-tools18/bin" "$HOME/.bashrc" 2>/dev/null; then
+            echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> "$HOME/.bashrc"
+        fi
+    fi
+}
+
+mssql_c() {
+    log_info "Cleaning sqlcmd..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -Rns --noconfirm mssql-tools msodbcsql || true
+    else
+        sudo apt-get purge -y mssql-tools18 unixodbc-dev || true
+        sudo apt-get autoremove -y || true
+        sudo rm -f /etc/apt/sources.list.d/mssql-release.list /etc/apt/trusted.gpg.d/microsoft.asc || true
+        sed -i '/mssql-tools18\/bin/d' "$HOME/.bashrc" 2>/dev/null || true
+    fi
+}
+
 # --- TREESITTER ---
 treesitter_i() {
     log_info "Installing Tree-sitter CLI..."
@@ -212,6 +263,36 @@ treesitter_c() {
         sudo apt-get purge -y tree-sitter-cli || true
         sudo apt-get autoremove -y || true
     fi
+}
+
+# --- DOCKER ---
+docker_i() {
+    log_info "Installing Docker (CLI + Compose plugin, no Docker Desktop)..."
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -S --noconfirm docker docker-compose
+    else
+        sudo apt-get install -y docker.io docker-compose-v2
+    fi
+
+    log_info "Enabling and starting the docker service..."
+    sudo systemctl enable --now docker.service
+
+    if ! id -nG "$USER" | grep -qw docker; then
+        log_info "Adding $USER to the docker group (log out/in, or run 'newgrp docker', for this to take effect)..."
+        sudo usermod -aG docker "$USER"
+    fi
+}
+
+docker_c() {
+    log_info "Cleaning Docker..."
+    sudo systemctl disable --now docker.service || true
+    if [ "$OS" = "arch" ]; then
+        sudo pacman -Rns --noconfirm docker docker-compose || true
+    else
+        sudo apt-get purge -y docker.io docker-compose-v2 || true
+        sudo apt-get autoremove -y || true
+    fi
+    sudo gpasswd -d "$USER" docker || true
 }
 
 # --- RUST ---
@@ -367,6 +448,9 @@ install_all() {
     rust_i
     nvim_i
     lazygit_i
+    docker_i
+    psql_i
+    mssql_i
     antigravity_i
     ai_cli_select
     treesitter_i
@@ -379,6 +463,9 @@ clean_all() {
     claude_c
     gemini_c
     antigravity_c
+    mssql_c
+    psql_c
+    docker_c
     lazygit_c
     nvim_c
     rust_c
@@ -399,7 +486,7 @@ show_help() {
     echo "  update               Run system update"
     echo ""
     echo "Components:"
-    echo "  build-ess, ghostty, dotnet, go, node, nvim, lazygit, treesitter, rust, antigravity, gemini, claude"
+    echo "  build-ess, ghostty, dotnet, go, node, nvim, lazygit, docker, psql, mssql, treesitter, rust, antigravity, gemini, claude"
     echo ""
     echo "Legacy Target Support:"
     echo "  <component>-i        Same as 'install <component>'"
@@ -466,6 +553,15 @@ case "$COMPONENT" in
         ;;
     lazygit)
         if [ "$ACTION" = "install" ]; then lazygit_i; else lazygit_c; fi
+        ;;
+    docker)
+        if [ "$ACTION" = "install" ]; then docker_i; else docker_c; fi
+        ;;
+    psql)
+        if [ "$ACTION" = "install" ]; then psql_i; else psql_c; fi
+        ;;
+    mssql)
+        if [ "$ACTION" = "install" ]; then mssql_i; else mssql_c; fi
         ;;
     treesitter)
         if [ "$ACTION" = "install" ]; then treesitter_i; else treesitter_c; fi
