@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1. OS Detection
-if [ -f /etc/arch-release ]; then
+# 1. OS Detection (DOTFILES_TEST_OS overrides for testing)
+if [ -n "${DOTFILES_TEST_OS:-}" ]; then
+    OS="$DOTFILES_TEST_OS"
+elif [ -f /etc/arch-release ]; then
     OS="arch"
 elif [ -f /etc/debian_version ]; then
     OS="debian"

@@ -6,8 +6,10 @@ NET_SDK_V="9.0"
 NET_RUN_V="10.0"
 NVM_V="0.40.4"
 
-# 1. OS Detection
-if [ -f /etc/arch-release ]; then
+# 1. OS Detection (DOTFILES_TEST_OS overrides for testing)
+if [ -n "${DOTFILES_TEST_OS:-}" ]; then
+    OS="$DOTFILES_TEST_OS"
+elif [ -f /etc/arch-release ]; then
     OS="arch"
 elif [ -f /etc/debian_version ]; then
     OS="debian"
