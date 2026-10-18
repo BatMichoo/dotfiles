@@ -14,6 +14,16 @@ Run the bootstrap command:
 curl -fsSL https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/dotfiles-setup.sh -o /tmp/dotfiles-setup.sh && chmod +x /tmp/dotfiles-setup.sh && /tmp/dotfiles-setup.sh
 ```
 
+### 🪟 Windows
+
+Windows uses PowerShell equivalents of the setup scripts (`*.ps1` in `.local/bin/`), driven by `winget`. Run from Windows PowerShell or PowerShell 7:
+
+```powershell
+irm https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/dotfiles-setup.ps1 -OutFile $env:TEMP\dotfiles-setup.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\dotfiles-setup.ps1
+```
+
+The Linux dotfiles don't apply on Windows, so bootstrap only sets up SSH and clones the Neovim config to `%LOCALAPPDATA%\nvim`. Flags mirror the Linux script: `-b`/`-Bootstrap`, `-s`/`-Sys`, `-a`/`-Apps`, `-All`, `-SkipSys`, `-u`/`-Update`.
+
 ---
 
 ## 🛠️ Included Integrations
@@ -56,4 +66,5 @@ The environment configuration is split into modular scripts located in `.local/b
 - **`sys-setup.sh`** — Developer environment package installer (Build essentials, Ghostty, Node.js/fnm, Go, Rust, .NET SDK (plus the EasyDotnet and roslyn-language-server global tools for easy-dotnet.nvim), Neovim, Lazygit, Docker + Compose, psql, go-sqlcmd (MSSQL), Tree-sitter, Gemini CLI, Claude Code CLI). Installing either AI CLI also installs the `superpowers` and `caveman` plugins via each CLI's native plugin manager (`claude plugin`, or `agy plugin` — Gemini CLI's plugin system is now invoked through Antigravity CLI, so the `antigravity` component must be installed first).
 - **`apps-setup.sh`** — Installer script for general applications (Discord, Steam) and a browser picker (Chrome, Firefox, Brave, or Skip).
 - **`github-ssh-setup.sh`** — Helper script to generate and print SSH keys for GitHub integration.
+- **`*.ps1`** — Windows counterparts: `dotfiles-setup.ps1` (orchestrator), `github-ssh-setup.ps1` (key generation plus the Windows `ssh-agent` service), `repo-setup.ps1` (clones the Neovim config, points Git at Windows OpenSSH, sets `EDITOR` and a `RemoteSigned` execution policy), `sys-setup.ps1` (build tools incl. gcc/make, .NET SDK with EasyDotnet, roslyn-language-server and the Azure Artifacts Credential Provider, fnm/Node, Go for mason's `sqls`, Neovim nightly, Lazygit, Docker Desktop, psql, go-sqlcmd, Azure CLI, Tree-sitter, Antigravity, Gemini CLI, Claude Code CLI) and `apps-setup.ps1` (Discord, Steam, browser picker). Ghostty and Rust are Linux-only.
 - **`reload-services.sh`** — Restarts single-instance user services (e.g. Ghostty's D-Bus-activated daemon) that cache their config at startup, so dotfile edits take effect without a logout. Runs automatically at the end of every `dotfiles-setup.sh` pass.
