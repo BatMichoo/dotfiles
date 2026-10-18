@@ -66,10 +66,18 @@ dotnet_i() {
         sudo apt-get update
         sudo apt-get install -y dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} aspnet-runtime-${NET_RUN_V}
     fi
+
+    # Global tools for easy-dotnet.nvim: its server and the Roslyn LSP it starts.
+    # install fails when the tool is already present, so fall back to update.
+    log_info "Installing EasyDotnet and Roslyn language server..."
+    dotnet tool install -g EasyDotnet || dotnet tool update -g EasyDotnet
+    dotnet tool install -g roslyn-language-server --prerelease || dotnet tool update -g roslyn-language-server --prerelease
 }
 
 dotnet_c() {
     log_info "Cleaning .NET SDK & Runtime..."
+    dotnet tool uninstall -g EasyDotnet || true
+    dotnet tool uninstall -g roslyn-language-server || true
     if [ "$OS" = "arch" ]; then
         sudo pacman -Rns --noconfirm dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} aspnet-runtime-${NET_RUN_V} || true
     else

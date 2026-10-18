@@ -46,6 +46,33 @@ setup() {
     grep -q "apt-get install -y dotnet-runtime-10.0 dotnet-sdk-9.0 aspnet-runtime-10.0" "$STUB_LOG"
 }
 
+@test "dotnet: installs EasyDotnet and roslyn-language-server as global tools" {
+    DOTFILES_TEST_OS=arch run bash "$SCRIPT" install dotnet
+    [ "$status" -eq 0 ]
+    grep -q "^dotnet tool install -g EasyDotnet$" "$STUB_LOG"
+    grep -q "^dotnet tool install -g roslyn-language-server --prerelease$" "$STUB_LOG"
+}
+
+@test "dotnet: updates the global tools when they are already installed" {
+    cat > "$STUB_BIN/dotnet" <<'EOF'
+#!/usr/bin/env bash
+echo "dotnet $*" >> "$STUB_LOG"
+[ "$2" != "install" ]
+EOF
+    chmod +x "$STUB_BIN/dotnet"
+    DOTFILES_TEST_OS=arch run bash "$SCRIPT" install dotnet
+    [ "$status" -eq 0 ]
+    grep -q "^dotnet tool update -g EasyDotnet$" "$STUB_LOG"
+    grep -q "^dotnet tool update -g roslyn-language-server --prerelease$" "$STUB_LOG"
+}
+
+@test "dotnet: clean uninstalls the global tools" {
+    DOTFILES_TEST_OS=arch run bash "$SCRIPT" clean dotnet
+    [ "$status" -eq 0 ]
+    grep -q "^dotnet tool uninstall -g EasyDotnet$" "$STUB_LOG"
+    grep -q "^dotnet tool uninstall -g roslyn-language-server$" "$STUB_LOG"
+}
+
 @test "go: arch uses pacman" {
     DOTFILES_TEST_OS=arch run bash "$SCRIPT" install go
     [ "$status" -eq 0 ]

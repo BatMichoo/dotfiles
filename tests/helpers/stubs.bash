@@ -90,7 +90,7 @@ stub_all_common() {
     stub_sudo
     stub_curl_noop
     for cmd in pacman apt-get add-apt-repository dpkg npm git systemctl gdbus \
-               kwriteconfig6 ssh-keygen ssh-add ssh-agent claude agy paru \
+               kwriteconfig6 ssh-keygen ssh-add ssh-agent claude agy paru dotnet \
                tar install rustup fnm nvm usermod gpasswd tee; do
         stub "$cmd"
     done
