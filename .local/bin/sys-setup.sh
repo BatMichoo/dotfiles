@@ -224,28 +224,30 @@ psql_c() {
     fi
 }
 
-# --- MICROSOFT SQL SERVER CLI (sqlcmd) ---
+# --- MICROSOFT SQL SERVER CLI (go-sqlcmd) ---
 mssql_i() {
-    log_info "Installing sqlcmd (mssql-tools18)..."
+    log_info "Installing sqlcmd (go-sqlcmd)..."
     if [ "$OS" = "arch" ]; then
-        # AUR; pulls the msodbcsql18 dependency automatically.
-        paru -S --noconfirm mssql-tools
+        # AUR; builds from source with go as a make dependency.
+        paru -S --noconfirm go-sqlcmd
     else
-        curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc >/dev/null
-        curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list >/dev/null
-        sudo apt-get update
-        sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
-        if ! grep -q "mssql-tools18/bin" "$HOME/.bashrc" 2>/dev/null; then
-            echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> "$HOME/.bashrc"
-        fi
+        # Static Go binary from GitHub releases; no Microsoft apt repo or EULA needed.
+        curl -Lo sqlcmd.tar.bz2 "https://github.com/microsoft/go-sqlcmd/releases/latest/download/sqlcmd-linux-amd64.tar.bz2"
+        tar xjf sqlcmd.tar.bz2 sqlcmd
+        sudo install sqlcmd /usr/local/bin/sqlcmd
+        rm -f sqlcmd sqlcmd.tar.bz2
     fi
 }
 
 mssql_c() {
     log_info "Cleaning sqlcmd..."
     if [ "$OS" = "arch" ]; then
+        sudo pacman -Rns --noconfirm go-sqlcmd || true
+        # Legacy ODBC-based sqlcmd from earlier versions of this script
         sudo pacman -Rns --noconfirm mssql-tools msodbcsql || true
     else
+        sudo rm -f /usr/local/bin/sqlcmd || true
+        # Legacy ODBC-based sqlcmd from earlier versions of this script
         sudo apt-get purge -y mssql-tools18 unixodbc-dev || true
         sudo apt-get autoremove -y || true
         sudo rm -f /etc/apt/sources.list.d/mssql-release.list /etc/apt/trusted.gpg.d/microsoft.asc || true
