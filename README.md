@@ -51,7 +51,7 @@ PowerDevil settings are automated for AC and Battery profiles:
 
 The environment configuration is split into modular scripts located in `.local/bin/`:
 
-- **`dotfiles-setup.sh`** — Core orchestrator script that initializes the bare repository, pulls configurations, and executes the helper setup scripts.
+- **`dotfiles-setup.sh`** — Core orchestrator script that initializes the bare repository, pulls configurations, and executes the helper setup scripts. Any selected helper script not yet present in `~/.local/bin` is downloaded there from GitHub first, so single steps work before bootstrap has run; scripts already on disk are reused. Run it with `-u`/`--update` (or menu option 7) to re-download the latest version of the helper scripts already in `~/.local/bin`.
 - **`kde-setup.sh`** — Centralized configuration script for KDE Plasma desktop environment settings (tiling, keyboard layouts, power profiles, terminal defaults, and live service reloads).
 - **`sys-setup.sh`** — Developer environment package installer (Build essentials, Ghostty, Node.js/fnm, Go, Rust, .NET SDK, Neovim, Lazygit, Docker + Compose, psql, sqlcmd (MSSQL), Tree-sitter, Gemini CLI, Claude Code CLI). Installing either AI CLI also installs the `superpowers` and `caveman` plugins via each CLI's native plugin manager (`claude plugin`, or `agy plugin` — Gemini CLI's plugin system is now invoked through Antigravity CLI, so the `antigravity` component must be installed first).
 - **`apps-setup.sh`** — Installer script for general applications (Discord, Steam) and a browser picker (Chrome, Firefox, Brave, or Skip).

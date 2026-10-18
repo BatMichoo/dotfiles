@@ -28,6 +28,7 @@ RUN_BOOTSTRAP=false
 RUN_KDE=false
 RUN_SYS=false
 RUN_APPS=false
+RUN_UPDATE=false
 
 show_help() {
     echo "Usage: $0 [options]"
@@ -39,6 +40,7 @@ show_help() {
     echo "  -a, --apps         Run general applications installation"
     echo "  --all              Run all setup steps in order"
     echo "  --skip-sys         Run Bootstrap, KDE, and Apps setups (skip system packages)"
+    echo "  -u, --update       Re-download the helper scripts already in ~/.local/bin"
     echo "  -h, --help         Show this help message"
 }
 
@@ -59,6 +61,10 @@ while [ $# -gt 0 ]; do
             ;;
         -a|--apps)
             RUN_APPS=true
+            shift
+            ;;
+        -u|--update)
+            RUN_UPDATE=true
             shift
             ;;
         --all)
@@ -87,7 +93,7 @@ while [ $# -gt 0 ]; do
 done
 
 # If no flags are set, run the interactive menu
-if [ "$RUN_BOOTSTRAP" = false ] && [ "$RUN_KDE" = false ] && [ "$RUN_SYS" = false ] && [ "$RUN_APPS" = false ]; then
+if [ "$RUN_BOOTSTRAP" = false ] && [ "$RUN_KDE" = false ] && [ "$RUN_SYS" = false ] && [ "$RUN_APPS" = false ] && [ "$RUN_UPDATE" = false ]; then
     echo "==========================================="
     echo "    🌌 Unified Dotfiles Bootstrap Setup"
     echo "==========================================="
@@ -97,9 +103,10 @@ if [ "$RUN_BOOTSTRAP" = false ] && [ "$RUN_KDE" = false ] && [ "$RUN_SYS" = fals
     echo "4) Configure KDE Desktop Only (kde-setup.sh)"
     echo "5) Install System Packages Only (sys-setup.sh)"
     echo "6) Install General Apps Only (apps-setup.sh)"
-    echo "7) Exit"
+    echo "7) Update Helper Scripts (fetch latest from GitHub)"
+    echo "8) Exit"
     echo "==========================================="
-    read -p "Select option [1-7]: " OPTION
+    read -p "Select option [1-8]: " OPTION
     case "$OPTION" in
         1)
             RUN_BOOTSTRAP=true
@@ -124,6 +131,9 @@ if [ "$RUN_BOOTSTRAP" = false ] && [ "$RUN_KDE" = false ] && [ "$RUN_SYS" = fals
         6)
             RUN_APPS=true
             ;;
+        7)
+            RUN_UPDATE=true
+            ;;
         *)
             echo "Exiting..."
             exit 0
@@ -132,76 +142,71 @@ if [ "$RUN_BOOTSTRAP" = false ] && [ "$RUN_KDE" = false ] && [ "$RUN_SYS" = fals
 fi
 
 # Define target paths
-SSH_SETUP_PATH="$HOME/.local/bin/github-ssh-setup.sh"
-REPO_SETUP_PATH="$HOME/.local/bin/repo-setup.sh"
-KDE_SETUP_PATH="$HOME/.local/bin/kde-setup.sh"
-SYS_SETUP_PATH="$HOME/.local/bin/sys-setup.sh"
-APPS_SETUP_PATH="$HOME/.local/bin/apps-setup.sh"
-RELOAD_SERVICES_PATH="$HOME/.local/bin/reload-services.sh"
+SCRIPTS_DIR="$HOME/.local/bin"
+SCRIPTS_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin"
+RELOAD_SERVICES_PATH="$SCRIPTS_DIR/reload-services.sh"
 
-SSH_SETUP_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/github-ssh-setup.sh"
-REPO_SETUP_URL="https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/repo-setup.sh"
+HELPER_SCRIPTS=(dotfiles-setup.sh github-ssh-setup.sh repo-setup.sh kde-setup.sh sys-setup.sh apps-setup.sh reload-services.sh)
 
-run_bootstrap() {
-    # 1. Run SSH setup
-    if [ -f "$SSH_SETUP_PATH" ]; then
-        chmod +x "$SSH_SETUP_PATH"
-        "$SSH_SETUP_PATH"
-    else
-        log_info "Downloading github-ssh-setup.sh..."
-        curl -fsSL "$SSH_SETUP_URL" -o /tmp/github-ssh-setup.sh
-        chmod +x /tmp/github-ssh-setup.sh
-        /tmp/github-ssh-setup.sh
-    fi
+# Downloads a helper script into ~/.local/bin. Writes to a temp file and moves
+# it into place, so replacing the copy of this script bash is executing is safe.
+download_script() {
+    local name="$1"
+    local path="$SCRIPTS_DIR/$name"
+    local tmp="$path.download"
 
-    # 2. Run Repo Setup
-    if [ -f "$REPO_SETUP_PATH" ]; then
-        chmod +x "$REPO_SETUP_PATH"
-        "$REPO_SETUP_PATH"
-    else
-        log_info "Downloading repo-setup.sh..."
-        curl -fsSL "$REPO_SETUP_URL" -o /tmp/repo-setup.sh
-        chmod +x /tmp/repo-setup.sh
-        /tmp/repo-setup.sh
-    fi
+    log_info "Downloading $name..."
+    mkdir -p "$SCRIPTS_DIR"
+    curl -fsSL "$SCRIPTS_URL/$name" -o "$tmp"
+    chmod +x "$tmp"
+    mv "$tmp" "$path"
 }
+
+# Runs a helper script from ~/.local/bin, downloading it first only when it
+# isn't on disk yet (e.g. a single step picked before bootstrap).
+run_setup_script() {
+    local name="$1"
+    shift
+    local path="$SCRIPTS_DIR/$name"
+
+    if [ ! -f "$path" ]; then
+        download_script "$name"
+    fi
+
+    chmod +x "$path"
+    "$path" "$@"
+}
+
+# Refresh only the helper scripts already on disk; missing ones are still
+# fetched on demand when their step runs
+if [ "$RUN_UPDATE" = true ]; then
+    for name in "${HELPER_SCRIPTS[@]}"; do
+        if [ -f "$SCRIPTS_DIR/$name" ]; then
+            download_script "$name"
+        fi
+    done
+fi
 
 # Execute components in dependency order: Bootstrap -> KDE -> Sys -> Apps
 if [ "$RUN_BOOTSTRAP" = true ]; then
-    run_bootstrap
+    run_setup_script github-ssh-setup.sh
+    run_setup_script repo-setup.sh
 fi
 
 if [ "$RUN_KDE" = true ]; then
-    if [ -f "$KDE_SETUP_PATH" ]; then
-        chmod +x "$KDE_SETUP_PATH"
-        "$KDE_SETUP_PATH"
-    else
-        log_error "Error: kde-setup.sh not found on disk. Run bootstrap first."
-        exit 1
-    fi
+    run_setup_script kde-setup.sh
 fi
 
 if [ "$RUN_SYS" = true ]; then
-    if [ -f "$SYS_SETUP_PATH" ]; then
-        chmod +x "$SYS_SETUP_PATH"
-        "$SYS_SETUP_PATH" install
-    else
-        log_error "Error: sys-setup.sh not found on disk. Run bootstrap first."
-        exit 1
-    fi
+    run_setup_script sys-setup.sh install
 fi
 
 if [ "$RUN_APPS" = true ]; then
-    if [ -f "$APPS_SETUP_PATH" ]; then
-        chmod +x "$APPS_SETUP_PATH"
-        "$APPS_SETUP_PATH" install
-    else
-        log_error "Error: apps-setup.sh not found on disk. Run bootstrap first."
-        exit 1
-    fi
+    run_setup_script apps-setup.sh install
 fi
 
-if [ -f "$RELOAD_SERVICES_PATH" ]; then
+# Skip the service reload for an update-only run: no config changed
+if [ -f "$RELOAD_SERVICES_PATH" ] && { [ "$RUN_BOOTSTRAP" = true ] || [ "$RUN_KDE" = true ] || [ "$RUN_SYS" = true ] || [ "$RUN_APPS" = true ]; }; then
     chmod +x "$RELOAD_SERVICES_PATH"
     "$RELOAD_SERVICES_PATH"
 fi

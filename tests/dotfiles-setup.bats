@@ -88,3 +88,34 @@ EOF
     [ "$status" -eq 0 ]
     grep -q "ran:reload-services.sh" "$STUB_LOG"
 }
+
+@test "downloads a missing sub-script into ~/.local/bin, then runs it" {
+    stub_curl_noop
+    rm "$BIN/kde-setup.sh"
+    run bash "$SCRIPT" -k
+    [ "$status" -eq 0 ]
+    grep -q "curl -fsSL https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/kde-setup.sh -o $BIN/kde-setup.sh.download" "$STUB_LOG"
+    [ -x "$BIN/kde-setup.sh" ]
+}
+
+@test "does not download a sub-script that is already on disk" {
+    stub_curl_noop
+    run bash "$SCRIPT" -k
+    [ "$status" -eq 0 ]
+    ! grep -q "^curl" "$STUB_LOG"
+    grep -q "ran:kde-setup.sh" "$STUB_LOG"
+}
+
+@test "-u re-downloads only the helper scripts already on disk and runs nothing else" {
+    stub_curl_noop
+    rm "$BIN/sys-setup.sh" "$BIN/apps-setup.sh"
+    run bash "$SCRIPT" -u
+    [ "$status" -eq 0 ]
+    for name in github-ssh-setup.sh repo-setup.sh kde-setup.sh reload-services.sh; do
+        grep -q "curl -fsSL https://raw.githubusercontent.com/BatMichoo/dotfiles/main/.local/bin/$name -o $BIN/$name.download" "$STUB_LOG"
+    done
+    ! grep -q "sys-setup.sh" "$STUB_LOG"
+    ! grep -q "apps-setup.sh" "$STUB_LOG"
+    [ ! -e "$BIN/sys-setup.sh" ]
+    ! grep -q "^ran:" "$STUB_LOG"
+}
