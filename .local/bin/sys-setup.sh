@@ -60,7 +60,7 @@ build_ess_c() {
 dotnet_i() {
     log_info "Installing .NET SDK & Runtime..."
     if [ "$OS" = "arch" ]; then
-        sudo pacman -S --noconfirm dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} aspnet-runtime-${NET_RUN_V}
+        sudo pacman -S --noconfirm dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} dotnet-sdk dotnet-targeting-pack aspnet-runtime-${NET_RUN_V}
     else
         sudo add-apt-repository ppa:dotnet/backports -y
         sudo apt-get update
@@ -79,7 +79,7 @@ dotnet_c() {
     dotnet tool uninstall -g EasyDotnet || true
     dotnet tool uninstall -g roslyn-language-server || true
     if [ "$OS" = "arch" ]; then
-        sudo pacman -Rns --noconfirm dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} aspnet-runtime-${NET_RUN_V} || true
+        sudo pacman -Rns --noconfirm dotnet-sdk dotnet-targeting-pack dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} aspnet-runtime-${NET_RUN_V} || true
     else
         sudo apt-get purge -y "dotnet*-${NET_SDK_V}*" "aspnetcore*-${NET_RUN_V}*" "dotnet*-${NET_RUN_V}*" || true
         sudo apt-get autoremove -y || true

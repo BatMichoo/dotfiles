@@ -36,7 +36,7 @@ setup() {
 @test "dotnet: arch uses pacman with version suffixes" {
     DOTFILES_TEST_OS=arch run bash "$SCRIPT" install dotnet
     [ "$status" -eq 0 ]
-    grep -q "pacman -S --noconfirm dotnet-runtime-10.0 dotnet-sdk-9.0 aspnet-runtime-10.0" "$STUB_LOG"
+    grep -q "pacman -S --noconfirm dotnet-runtime-10.0 dotnet-sdk-9.0 dotnet-sdk dotnet-targeting-pack aspnet-runtime-10.0" "$STUB_LOG"
 }
 
 @test "dotnet: debian adds PPA and uses apt-get" {
