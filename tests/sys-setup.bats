@@ -36,14 +36,14 @@ setup() {
 @test "dotnet: arch uses pacman with version suffixes" {
     DOTFILES_TEST_OS=arch run bash "$SCRIPT" install dotnet
     [ "$status" -eq 0 ]
-    grep -q "pacman -S --noconfirm dotnet-runtime-10.0 dotnet-sdk-9.0 dotnet-sdk dotnet-targeting-pack aspnet-runtime-10.0" "$STUB_LOG"
+    grep -q "pacman -S --noconfirm dotnet-runtime-10.0 dotnet-sdk-9.0 dotnet-sdk dotnet-targeting-pack aspnet-runtime-10.0 inotify-tools" "$STUB_LOG"
 }
 
 @test "dotnet: debian adds PPA and uses apt-get" {
     DOTFILES_TEST_OS=debian run bash "$SCRIPT" install dotnet
     [ "$status" -eq 0 ]
     grep -q "add-apt-repository ppa:dotnet/backports -y" "$STUB_LOG"
-    grep -q "apt-get install -y dotnet-runtime-10.0 dotnet-sdk-9.0 aspnet-runtime-10.0" "$STUB_LOG"
+    grep -q "apt-get install -y dotnet-runtime-10.0 dotnet-sdk-9.0 aspnet-runtime-10.0 inotify-tools" "$STUB_LOG"
 }
 
 @test "dotnet: installs EasyDotnet and roslyn-language-server as global tools" {

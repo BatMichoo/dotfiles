@@ -59,12 +59,13 @@ build_ess_c() {
 # --- DOTNET ---
 dotnet_i() {
     log_info "Installing .NET SDK & Runtime..."
+    # inotify-tools: Neovim's file watcher, which feeds Roslyn file changes on Linux
     if [ "$OS" = "arch" ]; then
-        sudo pacman -S --noconfirm dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} dotnet-sdk dotnet-targeting-pack aspnet-runtime-${NET_RUN_V}
+        sudo pacman -S --noconfirm dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} dotnet-sdk dotnet-targeting-pack aspnet-runtime-${NET_RUN_V} inotify-tools
     else
         sudo add-apt-repository ppa:dotnet/backports -y
         sudo apt-get update
-        sudo apt-get install -y dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} aspnet-runtime-${NET_RUN_V}
+        sudo apt-get install -y dotnet-runtime-${NET_RUN_V} dotnet-sdk-${NET_SDK_V} aspnet-runtime-${NET_RUN_V} inotify-tools
     fi
 
     # Global tools for easy-dotnet.nvim: its server and the Roslyn LSP it starts.
